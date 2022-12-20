@@ -1,0 +1,148 @@
+name: auto_build_docs_on_pr
+
+on: [pull_request]
+
+jobs:
+  build:
+    name: Build the handbook
+    runs-on: ubuntu-latest
+    steps:
+      - name: Bootstrap handbook user
+        run: |
+          sudo mkdir /home/me
+          sudo chown $USER:$USER /home/me
+          HOME=/home/me git config --global user.name "Elena Piscopia"
+          HOME=/home/me git config --global user.email "elena@example.net"
+      - name: Check out repo
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+          fetch-depth: 0  # OR "2" -> To retrieve the preceding commit.
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+          cache: 'pip'
+      - name: Install essential build dependencies
+        run: |
+          # git-annex
+          python -m pip install datalad-installer
+          datalad-installer --sudo ok -E ${HOME}/dlinstaller_env.sh git-annex -m snapshot
+          # pieces needed to build the HTML
+          python -m pip install -r requirements.txt
+          # pieces needed to execute the code examples
+          python -m pip install -r requirements-devel.txt
+          # make the handbook directives available to sphinx
+          python -m pip install -e .
+      - name: Wipe out runrecords
+        run: |
+          rm -f docs/basics/_examples/DL-101-*
+      - name: Sphinx build
+        run: |
+          . ${HOME}/dlinstaller_env.sh
+          make build
+      - name: Report difference
+        run: |
+          git diff
+      - name: Amend PR with runrecord updates
+        run: |
+          git config --global user.email "team@datalad.org"
+          git config --global user.name "DataLad update bot"
+          git add docs
+          git commit -m "[autobuild] updated runrecords"
+          git push
+
+  #  check_changes:
+  #    runs-on: ubuntu-latest
+  #    name: Test changed-files
+  #    outputs:
+  #      any_changed: ${{ steps.changed-files.outputs.any_changed }}
+  #      all_changed_files: ${{ steps.changed-files.outputs.all_changed_files }}
+  #    steps:
+  #      - name: Check out repo
+  #        uses: actions/checkout@v3
+  #        with:
+  #          fetch-depth: 0  # OR "2" -> To retrieve the preceding commit.
+  #      - name: Get changed files in the docs folder
+  #        id: any-changed
+  #        uses: tj-actions/changed-files@v35
+  #        with:
+  #          files: |
+  #            docs/**
+  #      - name: Run step if any file(s) in the docs folder change
+  #        id: changed-files
+  #        if: steps.any-changed.outputs.any_changed == 'true'
+  #        run: |
+  #          echo "One or more files in the docs folder has changed."
+  #          echo "List all the files that have changed: ${{ steps.any-changed.outputs.all_changed_files }}"
+  #          echo "any_changed=${{ steps.any-changed.outputs.any_changed }}" >> $GITHUB_OUTPUT
+  #          echo "all_changed_files=${{ steps.any-changed.outputs.all_changed_files }}" >> $GITHUB_OUTPUT
+  #
+  #  build:
+  #    needs: check_changes
+  #    if: needs.check_changes.outputs.any_changed == 'true'
+  #    runs-on: ubuntu-latest
+  #    steps:
+  #      - name: Checkout master
+  #        uses: actions/checkout@v3
+  #        with:
+  #          submodules: 'recursive'
+  #      - name: Delete code snippets linked to changed docs
+  #        run: |
+  #          echo "List all code snippets before:"
+  #          ls docs/basics/_examples
+  #          echo "List all the files that have changed:"
+  #          echo "${{ needs.check_changes.outputs.all_changed_files }}"
+  #          echo "Next: loop through all changed files and remove corresponding code snippets"
+  #          for file in ${{ needs.check_changes.outputs.all_changed_files }}; do
+  #            echo "Changed file: $file"
+  #            if [[ $file == *"_examples"* ]]; then
+  #              continue
+  #            fi
+  #            FILECODE=$(echo '$file' | awk -F[--] '{print $2}')
+  #            echo "filecode: $FILECODE"
+  #            echo "Related snippets: "
+  #            ls 
+  #            find docs/basics/_examples/ -name "*-$FILECODE-*"
+  #            find docs/basics/_examples/ -name "*-$FILECODE-*" -delete
+  #          done
+  #          echo "List all code snippets after:"
+  #          ls docs/basics/_examples
+  #      # - name: Set up system
+  #      #   shell: bash
+  #      #   run: |
+  #      #     bash <(wget -q -O- http://neuro.debian.net/_files/neurodebian-travis.sh)
+  #      #     # enable repo for devel git-annex, if needed
+  #      #     #sudo sed -e 's|\(deb.*data\)|#\1|' -e 's|/debian |/debian-devel |' /etc/apt/sources.list.d/neurodebian.sources.list | sudo tee /etc/apt/sources.list.d/neurodebian-devel.sources.list
+  #      #     sudo apt-get update -qq
+  #      #     sudo apt-get install eatmydata
+  #      #     sudo eatmydata apt-get install git-annex-standalone dosfstools
+  #      #     sudo apt-get install librsvg2-bin
+  #      # - name: Set up Python 3.11
+  #      #   uses: actions/setup-python@v4
+  #      #   with:
+  #      #     python-version: 3.11
+  #      # - name: Install book and dependencies
+  #      #   run: |
+  #      #     pip install -e .
+  #      #     pip install -r requirements.txt
+  #      #     # pip install -r requirements-devel.txt
+  #      # - name: Build the docs!
+  #      #   run: |
+  #      #     sudo mkdir /home/me
+  #      #     sudo chown $USER:$USER /home/me
+  #      #     HOME=/home/me git config --global user.email "test@github.land"
+  #      #     HOME=/home/me git config --global user.name "GitHub Almighty"
+  #      #     make build .
+  #      # - name: Add, commit, push
+  #      #   run: |
+  #      #     git config --global user.email "test@github.land"
+  #      #     git config --global user.name "GitHub Almighty"
+  #      #     if [[ `git status --porcelain docs/basics/_examples/` ]]; then
+  #      #       echo "code snippets updated"
+  #      #       git add docs/basics/_examples/*
+  #      #       git commit -m "[Autobuild Action] update code snippets"
+  #      #       git push
+  #      #     fi
+  #          
+  #          

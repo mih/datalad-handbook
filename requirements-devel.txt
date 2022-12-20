@@ -1,8 +1,8 @@
 # install python packages that are relevant to build all handbook examples
 datalad-container
-nose
 seaborn
 pandas
-sklearn
-scikit-image
-dvc
+scikit-learn
+# following not needed for basics
+#scikit-image
+#dvc
