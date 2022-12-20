@@ -330,11 +330,12 @@ To compute the analysis you create the following Python script inside of ``code/
 
    # prepare the data as a pandas dataframe
    df = pd.read_csv(args.data)
-   attributes = ["sepal_length", "sepal_width", "petal_length","petal_width", "class"]
-   df.columns = attributes
+   print(df)
+   #attributes = ["sepal_length", "sepal_width", "petal_length","petal_width", "class"]
+   #df.columns = attributes
 
    # create a pairplot to plot pairwise relationships in the dataset
-   plot = sns.pairplot(df, hue='class', palette='muted')
+   plot = sns.pairplot(df, hue='variety', palette='muted')
    plot.savefig(args.output_figure)
 
    # perform a K-nearest-neighbours classification with scikit-learn
@@ -477,7 +478,7 @@ re-execution with :command:`datalad rerun` easy.
      --input "input/iris.csv" \
      --output "pairwise_relationships.png" \
      --output "prediction_report.csv" \
-     "python3 code/script.py {inputs} {outputs}"
+     "python code/script.py {inputs} {outputs}"
 
 As the successful command summary indicates, your analysis seems to work! Two
 files were created and saved to the dataset: ``pairwise_relationships.png``
